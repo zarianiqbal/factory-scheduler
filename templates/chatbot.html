@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factory Scheduler AI Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .chat-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .chat-header {
+            background-color: #0d6efd;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .chat-messages {
+            height: 500px;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            max-width: 75%;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 18px;
+            line-height: 1.5;
+            position: relative;
+            white-space: pre-line;
+        }
+        .user-message {
+            background-color: #e9f5ff;
+            color: #333;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+        .bot-message {
+            background-color: #f0f0f0;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+        .chat-input {
+            display: flex;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-top: 1px solid #eee;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            margin-right: 10px;
+        }
+        .chat-input button {
+            border-radius: 20px;
+        }
+        .cursor-pointer {
+            cursor: pointer;
+        }
+        .cursor-pointer:hover {
+            text-decoration: underline;
+        }
+        .quick-reply {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-gear-fill me-2"></i>Factory Scheduler
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/chatbot"><i class="bi bi-chat-dots me-1"></i>AI Assistant</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <i class="bi bi-robot me-2"></i>Factory Scheduler AI Assistant
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="message bot-message">
+                    Hello! I'm your Factory Scheduler Assistant. How can I help you today?
+                    
+                    You can ask me about:
+                    • Unscheduled jobs
+                    • Machine status
+                    • Upcoming deadlines
+                    • Overall factory status
+                </div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="user-input" placeholder="Type your question here..." class="form-control">
+                <button id="send-button" class="btn btn-primary">
+                    <i class="bi bi-send"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chat-messages');
+            const userInput = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+            
+            let welcomeMessageSent = false;
+            let autoSchedulingPerformed = false; // Add flag to track if auto-scheduling was performed
+
+            // Clear any existing messages to avoid double welcome messages
+            chatMessages.innerHTML = '';
+
+            // Only add welcome message if it hasn't been sent
+            if (!welcomeMessageSent) {
+                addMessage("Hello! I'm your Factory Scheduler Assistant. How can I help you today?\n\nYou can ask me about:\n• Unscheduled jobs\n• Machine status\n• Upcoming deadlines\n• Overall factory status", false);
+                welcomeMessageSent = true;
+            }
+
+            // Function to add a message to the chat
+            function addMessage(text, isUser) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                messageDiv.classList.add(isUser ? 'user-message' : 'bot-message');
+                
+                // Make job IDs and machine IDs clickable for easy scheduling
+                if (!isUser) {
+                    // Convert text with job and machine IDs to clickable elements
+                    const jobPattern = /Job ([A-Za-z0-9\-]+)/g;
+                    const machinePattern = /Machine ([A-Za-z0-9\-]+)/g;
+                    
+                    let formattedText = text;
+                    
+                    // Add highlighting and make job IDs clickable
+                    formattedText = formattedText.replace(jobPattern, (match, jobId) => {
+                        return `<span class="text-primary cursor-pointer job-id" data-job-id="${jobId}">${match}</span>`;
+                    });
+                    
+                    // Add highlighting to machine IDs but keep same color as text (don't use text-success class)
+                    formattedText = formattedText.replace(machinePattern, (match, machineId) => {
+                        return `<span class="cursor-pointer machine-id" data-machine-id="${machineId}">${match}</span>`;
+                    });
+                    
+                    messageDiv.innerHTML = formattedText;
+                    
+                    // Add event listeners after adding to DOM
+                    setTimeout(() => {
+                        messageDiv.querySelectorAll('.job-id').forEach(el => {
+                            el.addEventListener('click', () => {
+                                const jobId = el.getAttribute('data-job-id');
+                                userInput.value = `Tell me more about Job ${jobId}`;
+                            });
+                        });
+                        
+                        messageDiv.querySelectorAll('.machine-id').forEach(el => {
+                            el.addEventListener('click', () => {
+                                const machineId = el.getAttribute('data-machine-id');
+                                userInput.value = `Tell me more about Machine ${machineId}`;
+                            });
+                        });
+                    }, 100);
+                } else {
+                    messageDiv.textContent = text;
+                }
+                
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Check if this is a response about unscheduled jobs and auto-scheduling hasn't been performed
+                if (!isUser && 
+                    !autoSchedulingPerformed && // Check the flag before showing the button
+                    (text.includes("unscheduled jobs") || text.includes("jobs to schedule")) && 
+                    !text.includes("All jobs have been scheduled")) {
+                    
+                    // Add auto-schedule button
+                    const actionDiv = document.createElement('div');
+                    actionDiv.classList.add('quick-reply', 'mt-2', 'mb-3');
+                    actionDiv.innerHTML = `
+                        <button class="btn btn-success auto-schedule-btn">
+                            <i class="bi bi-lightning-charge-fill"></i> Auto-Schedule All Jobs
+                        </button>
+                    `;
+                    
+                    chatMessages.appendChild(actionDiv);
+                    
+                    // Add event listener to auto-schedule button
+                    const autoScheduleBtn = actionDiv.querySelector('.auto-schedule-btn');
+                    autoScheduleBtn.addEventListener('click', autoScheduleJobs);
+                    
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+                
+                // Add a quick reply section with scheduling button if recommendations are shown
+                if (!isUser && text.includes('→ Machine')) {
+                    const matches = text.matchAll(/• Job ([A-Za-z0-9\-]+).+→ Machine ([A-Za-z0-9\-]+)/g);
+                    const uniqueMatches = new Set();
+                    
+                    for (const match of matches) {
+                        const jobId = match[1];
+                        const machineId = match[2];
+                        const key = `${jobId}-${machineId}`;
+                        
+                        if (!uniqueMatches.has(key)) {
+                            uniqueMatches.add(key);
+                            
+                            const quickReply = document.createElement('div');
+                            quickReply.classList.add('quick-reply', 'mt-2', 'mb-3');
+                            quickReply.innerHTML = `
+                                <button class="btn btn-sm btn-outline-primary schedule-btn"
+                                        data-job-id="${jobId}" data-machine-id="${machineId}">
+                                    Schedule Job ${jobId} on Machine ${machineId}
+                                </button>
+                            `;
+                            
+                            chatMessages.appendChild(quickReply);
+                            
+                            // Add event listener to schedule button
+                            const scheduleBtn = quickReply.querySelector('.schedule-btn');
+                            scheduleBtn.addEventListener('click', async () => {
+                                const scheduleMsg = `Schedule Job ${jobId} on Machine ${machineId}`;
+                                // Show user message
+                                addMessage(scheduleMsg, true);
+                                
+                                try {
+                                    // Call API directly to schedule the job
+                                    const response = await fetch('/api/scheduleJob', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({
+                                            job_id: jobId,
+                                            machine_id: machineId
+                                        })
+                                    });
+                                    
+                                    const result = await response.json();
+                                    
+                                    if (response.ok) {
+                                        // Show success message
+                                        addMessage(`✅ Success! I've scheduled Job ${jobId} on Machine ${machineId}.\n\nLet me get you the updated factory status...`, false);
+                                        
+                                        // Get updated factory status
+                                        const statusResponse = await fetch('/api/chatbot', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ query: "overall factory status" })
+                                        });
+                                        
+                                        if (statusResponse.ok) {
+                                            const statusData = await statusResponse.json();
+                                            addMessage(statusData.response || "I couldn't retrieve the updated status.", false);
+                                        }
+                                    } else {
+                                        // Show error message
+                                        addMessage(`❌ Error: ${result.message || "Couldn't schedule the job"}`, false);
+                                    }
+                                } catch (error) {
+                                    console.error('Error scheduling job:', error);
+                                    addMessage(`❌ Error: ${error.message || "An error occurred while scheduling the job"}`, false);
+                                }
+                            });
+                        }
+                    }
+                    
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            }
+            
+            // Function to auto-schedule the unscheduled jobs
+            async function autoScheduleJobs() {
+                try {
+                    // Set the flag to prevent showing the button again
+                    autoSchedulingPerformed = true;
+                    
+                    // Show a message that we're starting
+                    addMessage("Starting auto-scheduling process...", false);
+                    
+                    // First get all jobs and machines to use for scheduling
+                    const jobsResponse = await fetch('/api/getJobs');
+                    const machinesResponse = await fetch('/api/getMachineStatus');
+                    
+                    if (!jobsResponse.ok || !machinesResponse.ok) {
+                        throw new Error("Failed to load job or machine data");
+                    }
+                    
+                    const allJobs = await jobsResponse.json();
+                    const allMachines = await machinesResponse.json();
+                    
+                    // Filter for unscheduled jobs
+                    const unscheduledJobs = allJobs.filter(job => !job.scheduled);
+                    
+                    if (unscheduledJobs.length === 0) {
+                        addMessage("All jobs are already scheduled! Nothing to do.", false);
+                        return;
+                    }
+                    
+                    addMessage(`Found ${unscheduledJobs.length} unscheduled jobs. Scheduling one by one...`, false);
+                    
+                    // Filter for online machines
+                    const onlineMachines = allMachines.filter(machine => machine.status === 'online');
+                    
+                    if (onlineMachines.length === 0) {
+                        addMessage("❌ No online machines available for scheduling!", false);
+                        return;
+                    }
+                    
+                    let successCount = 0;
+                    let errorCount = 0;
+                    const errors = [];
+                    
+                    // Create a copy of online machines to track available capacity
+                    const machineCapacity = {};
+                    onlineMachines.forEach(machine => {
+                        machineCapacity[machine.machine_id] = {
+                            remainingHours: machine.available_hours - (machine.used_hours || 0),
+                            totalHours: machine.available_hours
+                        };
+                    });
+                    
+                    // Sort jobs by priority (highest first)
+                    const sortedJobs = [...unscheduledJobs].sort((a, b) => b.priority - a.priority);
+                    
+                    // For each job, find the best machine with enough capacity
+                    for (const job of sortedJobs) {
+                        try {
+                            console.log(`Processing job ${job.job_id} with required hours: ${job.required_hours}`);
+                            
+                            // Find best machine with enough capacity
+                            let bestMachine = null;
+                            let bestCapacity = -1;
+                            
+                            for (const machine of onlineMachines) {
+                                const capacity = machineCapacity[machine.machine_id];
+                                console.log(`Machine ${machine.machine_id} has ${capacity.remainingHours} hours remaining`);
+                                
+                                if (capacity.remainingHours >= job.required_hours && capacity.remainingHours > bestCapacity) {
+                                    bestMachine = machine;
+                                    bestCapacity = capacity.remainingHours;
+                                }
+                            }
+                            
+                            if (!bestMachine) {
+                                errorCount++;
+                                errors.push(`Job ${job.job_id}: No machine has enough capacity for ${job.required_hours} hours`);
+                                console.log(`No suitable machine found for job ${job.job_id}`);
+                                continue;
+                            }
+                            
+                            // Schedule the job
+                            console.log(`Scheduling job ${job.job_id} on machine ${bestMachine.machine_id}`);
+                            
+                            try {
+                                // Use a slower, more reliable approach with error handling
+                                const scheduleResponse = await fetch('/api/scheduleJob', {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({
+                                        job_id: job.job_id,
+                                        machine_id: bestMachine.machine_id
+                                    })
+                                });
+                                
+                                // Check if the response is JSON
+                                const contentType = scheduleResponse.headers.get("content-type");
+                                if (!contentType || !contentType.includes("application/json")) {
+                                    // If not JSON, it's probably an HTML error page
+                                    const errorText = await scheduleResponse.text();
+                                    throw new Error("Server returned HTML instead of JSON");
+                                }
+                                
+                                const result = await scheduleResponse.json();
+                                
+                                if (scheduleResponse.ok && result.success) {
+                                    successCount++;
+                                    
+                                    // Update the machine's remaining capacity for next iterations
+                                    machineCapacity[bestMachine.machine_id].remainingHours -= job.required_hours;
+                                    console.log(`Updated capacity for ${bestMachine.machine_id}: ${machineCapacity[bestMachine.machine_id].remainingHours} hours remaining`);
+                                } else {
+                                    errorCount++;
+                                    
+                                    // Make the error message more user-friendly
+                                    let errorMessage = result.message;
+                                    if (errorMessage.includes("not have enough capacity")) {
+                                        errorMessage = `Insufficient capacity: ${errorMessage}`;
+                                    }
+                                    
+                                    errors.push(`Job ${job.job_id}: ${errorMessage}`);
+                                    console.log(`Failed to schedule job ${job.job_id}: ${result.message}`);
+                                }
+                            } catch (err) {
+                                errorCount++;
+                                errors.push(`Job ${job.job_id}: ${err.message}`);
+                                console.error(`Exception scheduling job ${job.job_id}:`, err);
+                            }
+                        } catch (jobErr) {
+                            errorCount++;
+                            errors.push(`Job ${job.job_id}: ${jobErr.message}`);
+                            console.error(`Error processing job ${job.job_id}:`, jobErr);
+                        }
+                        
+                        // Add a small delay between requests to avoid overwhelming the server
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                    
+                    // Show scheduling results
+                    let resultMessage = `✅ Auto-scheduling complete!\n\n`;
+                    resultMessage += `Successfully scheduled: ${successCount} jobs\n`;
+                    
+                    if (errorCount > 0) {
+                        resultMessage += `Failed to schedule: ${errorCount} jobs\n\n`;
+                        if (errors.length > 0) {
+                            resultMessage += `Errors:\n${errors.join('\n')}`;
+                        }
+                    }
+                    
+                    addMessage(resultMessage, false);
+                    
+                    // Get updated factory status
+                    try {
+                        const statusResponse = await fetch('/api/chatbot', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ query: "overall factory status" })
+                        });
+                        
+                        if (statusResponse.ok) {
+                            const statusData = await statusResponse.json();
+                            addMessage("Here's the updated factory status:", false);
+                            addMessage(statusData.response || "I couldn't retrieve the updated status.", false);
+                        }
+                    } catch (statusError) {
+                        console.error("Error getting status:", statusError);
+                    }
+                    
+                    // Force refresh the dashboard if this window was opened from there
+                    try {
+                        if (window.opener && !window.opener.closed) {
+                            window.opener.postMessage("refresh_dashboard", "*");
+                        }
+                    } catch (e) {
+                        console.log("Could not communicate with parent window:", e);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error in auto-scheduling:', error);
+                    addMessage(`❌ Error during auto-scheduling: ${error.message}`, false);
+                }
+            }
+            
+            // Function to send a message to the backend
+            async function sendMessage() {
+                const message = userInput.value.trim();
+                if (!message) return;
+                
+                // Add user message to chat
+                addMessage(message, true);
+                userInput.value = '';
+                
+                try {
+                    console.log("Sending message to backend:", message);
+                    
+                    // Send to backend
+                    const response = await fetch('/api/chatbot', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query: message })
+                    });
+                    
+                    console.log("Response status:", response.status);
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error("Server error response:", errorText);
+                        throw new Error(`Server error: ${response.status} - ${errorText}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log("Response data:", data);
+                    
+                    // Add bot response to chat
+                    addMessage(data.response || "No response received", false);
+                    
+                    // If this was a scheduling command that succeeded, get updated status
+                    if (message.toLowerCase().includes('schedule job') && data.data_type === 'job_scheduled') {
+                        // Get updated factory status
+                        const statusResponse = await fetch('/api/chatbot', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ query: "overall factory status" })
+                        });
+                        
+                        if (statusResponse.ok) {
+                            const statusData = await statusResponse.json();
+                            addMessage("Here's the updated factory status:", false);
+                            addMessage(statusData.response || "I couldn't retrieve the updated status.", false);
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    addMessage(`Sorry, there was an error processing your request: ${error.message}`, false);
+                }
+            }
+            
+            // Event listeners
+            sendButton.addEventListener('click', sendMessage);
+            
+            userInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            // Focus input on load
+            userInput.focus();
+        });
+    </script>
+</body>
+</html>

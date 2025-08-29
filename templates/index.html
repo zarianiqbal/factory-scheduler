@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factory Scheduler Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .card {
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            font-weight: bold;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+        }
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .stat-card .label {
+            font-size: 1rem;
+            color: #6c757d;
+        }
+        .alert-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #dc3545;
+            color: white;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .table th, .table td {
+            vertical-align: middle;
+        }
+        .progress {
+            height: 10px;
+        }
+        .progress-bar {
+            border-radius: 4px;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-online {
+            background-color: #28a745;
+        }
+        .status-offline {
+            background-color: #dc3545;
+        }
+        .loading-spinner {
+            width: 3rem; 
+            height: 3rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-gear-fill me-2"></i>Factory Scheduler
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/chatbot"><i class="bi bi-chat-dots me-1"></i>AI Assistant</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <button id="generate-data" class="btn btn-sm btn-warning me-2">
+                        <i class="bi bi-database-add me-1"></i>Generate New Data
+                    </button>
+                    <button id="refresh-data" class="btn btn-sm btn-light">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div id="loading-indicator" class="text-center my-5">
+            <div class="spinner-border loading-spinner text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h4 class="mt-3">Loading dashboard data...</h4>
+        </div>
+        
+        <div id="dashboard-content" class="d-none">
+            <h1 class="mb-4">Factory Production Dashboard</h1>
+            
+            <!-- Status Summary -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body stat-card">
+                            <div class="value" id="total-jobs">--</div>
+                            <div class="label">Total Jobs</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body stat-card">
+                            <div class="value" id="scheduled-jobs">--</div>
+                            <div class="label">Scheduled Jobs</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-dark">
+                        <div class="card-body stat-card">
+                            <div class="value" id="unscheduled-jobs">--</div>
+                            <div class="label">Unscheduled Jobs</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body stat-card">
+                            <div class="value" id="online-machines">--</div>
+                            <div class="label">Online Machines</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="row">
+                <!-- Machine Status -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="bi bi-pc-display me-2"></i>Machine Status
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="machine-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Machine ID</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Utilization</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="4" class="text-center">Loading machine data...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Scheduled Jobs -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="bi bi-calendar-check me-2"></i>Production Schedule
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="schedule-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Job ID</th>
+                                            <th>Product</th>
+                                            <th>Machine</th>
+                                            <th>Deadline</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="4" class="text-center">Loading schedule data...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <!-- Unscheduled Jobs -->
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="bi bi-list"></i>Unscheduled Jobs
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="jobs-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Job ID</th>
+                                            <th>Product</th>
+                                            <th>Priority</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="4" class="text-center">Loading jobs data...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Define all the tables and containers
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const dashboardContent = document.getElementById('dashboard-content');
+            
+            // Simple functions to update tables
+            function updateMachineTable(machines) {
+                const tableBody = document.querySelector('#machine-table tbody');
+                if (!tableBody) return;
+                
+                tableBody.innerHTML = '';
+                
+                if (!machines || machines.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No machine data available</td></tr>';
+                    return;
+                }
+                
+                machines.forEach(machine => {
+                    const row = document.createElement('tr');
+                    
+                    // Calculate utilization safely
+                    let utilization = 0;
+                    if ('utilization' in machine && !isNaN(machine.utilization)) {
+                        utilization = machine.utilization;
+                    } else if ('used_hours' in machine && 'available_hours' in machine && 
+                               !isNaN(machine.used_hours) && !isNaN(machine.available_hours) && 
+                               machine.available_hours > 0) {
+                        utilization = (machine.used_hours / machine.available_hours) * 100;
+                    }
+                    
+                    // Ensure utilization is a valid number
+                    if (isNaN(utilization)) utilization = 0;
+                    
+                    // Determine status class
+                    const statusClass = machine.status === 'online' ? 'status-online' : 'status-offline';
+                    
+                    // Set progress bar color
+                    let progressClass = 'bg-success';
+                    if (utilization > 70) progressClass = 'bg-warning';
+                    if (utilization > 90) progressClass = 'bg-danger';
+                    
+                    row.innerHTML = `
+                        <td>${machine.machine_id || 'Unknown'}</td>
+                        <td>${machine.machine_type || 'Unknown'}</td>
+                        <td><span class="status-dot ${statusClass}"></span>${machine.status || 'unknown'}</td>
+                        <td>
+                            <div class="progress">
+                                <div class="progress-bar ${progressClass}" role="progressbar" 
+                                     style="width: ${utilization}%" 
+                                     aria-valuenow="${utilization}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100"></div>
+                            </div>
+                            <small>${utilization.toFixed(1)}%</small>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+            }
+            
+            function updateScheduleTable(schedule) {
+                const tableBody = document.querySelector('#schedule-table tbody');
+                if (!tableBody) return;
+                
+                tableBody.innerHTML = '';
+                
+                if (!schedule || schedule.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No scheduled jobs</td></tr>';
+                    return;
+                }
+                
+                schedule.forEach(item => {
+                    const row = document.createElement('tr');
+                    
+                    const productInfo = item.product_type ? 
+                        `${item.product_type}${item.job_type ? ` (${item.job_type})` : ''}` : 
+                        'Unknown product';
+                    
+                    row.innerHTML = `
+                        <td>${item.job_id || 'Unknown'}</td>
+                        <td>${productInfo}</td>
+                        <td>${item.machine_id || 'Unknown'}</td>
+                        <td>${item.end_date || 'Not set'}</td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+            }
+            
+            function updateJobsTable(jobs) {
+                const tableBody = document.querySelector('#jobs-table tbody');
+                if (!tableBody) return;
+                
+                // Find unscheduled jobs
+                const unscheduled = jobs.filter(job => !job.scheduled);
+                
+                tableBody.innerHTML = '';
+                
+                if (unscheduled.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No unscheduled jobs</td></tr>';
+                    return;
+                }
+                
+                unscheduled.forEach(job => {
+                    const row = document.createElement('tr');
+                    
+                    // Determine priority class
+                    let priorityBadge = 'bg-secondary';
+                    if (job.priority === 3) priorityBadge = 'bg-danger';
+                    else if (job.priority === 2) priorityBadge = 'bg-warning text-dark';
+                    
+                    const productInfo = job.product_type ? 
+                        `${job.product_type}${job.job_type ? ` (${job.job_type})` : ''}` : 
+                        'Unknown product';
+                    
+                    row.innerHTML = `
+                        <td>${job.job_id}</td>
+                        <td>${productInfo}</td>
+                        <td><span class="badge ${priorityBadge}">${job.priority}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary schedule-job-btn" 
+                                    data-job-id="${job.job_id}"
+                                    onclick="window.open('/chatbot', '_blank')">
+                                Schedule
+                            </button>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+            }
+            
+            // Very simple function to load dashboard data with error handling
+            function loadDashboard() {
+                // Show loading indicator, hide dashboard content
+                loadingIndicator.classList.remove('d-none');
+                dashboardContent.classList.add('d-none');
+                
+                // Simple function to safely fetch and update content
+                async function updateData() {
+                    try {
+                        // Get system status first
+                        const statusResponse = await fetch('/api/getSystemStatus');
+                        if (statusResponse.ok) {
+                            const statusData = await statusResponse.json();
+                            document.getElementById('total-jobs').textContent = statusData.total_jobs || '0';
+                            document.getElementById('scheduled-jobs').textContent = statusData.scheduled_jobs || '0';
+                            document.getElementById('unscheduled-jobs').textContent = statusData.unscheduled_jobs || '0';
+                            document.getElementById('online-machines').textContent = statusData.online_machines || '0';
+                        }
+                        
+                        // Update machine status
+                        const machinesResponse = await fetch('/api/getMachineStatus');
+                        if (machinesResponse.ok) {
+                            const machines = await machinesResponse.json();
+                            updateMachineTable(machines);
+                        }
+                        
+                        // Update schedule
+                        const scheduleResponse = await fetch('/api/getSchedule');
+                        if (scheduleResponse.ok) {
+                            const scheduleData = await scheduleResponse.json();
+                            updateScheduleTable(scheduleData);
+                        }
+                        
+                        // Update jobs
+                        const jobsResponse = await fetch('/api/getJobs');
+                        if (jobsResponse.ok) {
+                            const jobs = await jobsResponse.json();
+                            updateJobsTable(jobs);
+                        }
+                        
+                        // Hide loading, show dashboard - do this AFTER all data is loaded
+                        loadingIndicator.classList.add('d-none');
+                        dashboardContent.classList.remove('d-none');
+                        
+                    } catch (error) {
+                        console.error('Error loading dashboard:', error);
+                        // Show an error message in the loading indicator
+                        loadingIndicator.innerHTML = `
+                            <div class="alert alert-danger" role="alert">
+                                <h4>Error Loading Dashboard</h4>
+                                <p>${error.message}</p>
+                                <button id="retry-button" class="btn btn-primary mt-3">Retry</button>
+                            </div>
+                        `;
+                        
+                        // Add retry button handler
+                        document.getElementById('retry-button').addEventListener('click', loadDashboard);
+                    }
+                }
+                
+                // Start updating data
+                updateData();
+            }
+            
+            // Load dashboard data on page load
+            loadDashboard();
+            
+            // Refresh button
+            const refreshButton = document.getElementById('refresh-data');
+            if (refreshButton) {
+                refreshButton.addEventListener('click', function() {
+                    loadDashboard();
+                });
+            }
+            
+            // Generate new data button
+            const generateButton = document.getElementById('generate-data');
+            if (generateButton) {
+                generateButton.addEventListener('click', function() {
+                    // Show loading spinner
+                    loadingIndicator.classList.remove('d-none');
+                    dashboardContent.classList.add('d-none');
+                    loadingIndicator.innerHTML = `
+                        <div class="spinner-border loading-spinner text-warning" role="status">
+                            <span class="visually-hidden">Generating new data...</span>
+                        </div>
+                        <h4 class="mt-3">Generating new factory data...</h4>
+                    `;
+                    
+                    // Call the generate data API endpoint
+                    fetch('/api/generateNewData')
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('Generated new data:', data);
+                            // Show success message
+                            loadingIndicator.innerHTML = `
+                                <div class="alert alert-success" role="alert">
+                                    <h4 class="alert-heading">New Data Generated!</h4>
+                                    <p>${data.message || 'New factory data has been generated successfully.'}</p>
+                                    <hr>
+                                    <p class="mb-0">Refreshing dashboard with new data...</p>
+                                </div>
+                            `;
+                            // Reload dashboard after a short delay
+                            setTimeout(loadDashboard, 1500);
+                        })
+                        .catch(error => {
+                            console.error('Error generating new data:', error);
+                            loadingIndicator.innerHTML = `
+                                <div class="alert alert-danger" role="alert">
+                                    <h4 class="alert-heading">Error!</h4>
+                                    <p>Failed to generate new data: ${error.message}</p>
+                                    <button id="retry-button" class="btn btn-primary mt-3">Retry</button>
+                                </div>
+                            `;
+                            // Add retry button handler
+                            document.getElementById('retry-button').addEventListener('click', loadDashboard);
+                        });
+                });
+            }
+            
+            // Listen for window messages (from chatbot window)
+            window.addEventListener('message', function(event) {
+                if (event.data === 'refresh_dashboard') {
+                    loadDashboard();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
